@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: MIT
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # gcc and clang separately rather than in a matrix with the rest, because
+  # they disagree often enough to be worth seeing individually -- clang rejects
+  # INFINITY assigned to a double under -Wdouble-promotion, for instance, and
+  # gcc does not.
+  build:
+    name: ${{ matrix.cc }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=${{ matrix.cc }}
+          cmake --build build -j"$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    name: asan + ubsan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Debug -DTESSERA_SANITIZE=ON
+          cmake --build build -j"$(nproc)"
+          ctest --test-dir build --output-on-failure
+
+  thread-sanitizer:
+    name: tsan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Only the port tests spawn a thread, so only they can show a data race --
+      # and the loader running against a panning UI thread is the contention
+      # worth proving is clean.
+      - run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-fsanitize=thread -g"
+          cmake --build build -j"$(nproc)" --target test_ports
+          setarch "$(uname -m)" -R ./build/test_ports
+
+  cortex-m4:
+    name: cortex-m4f cross-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi
+      - name: Build for the target
+        run: |
+          cmake -B build-arm \
+                -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m4.cmake \
+                -DCMAKE_BUILD_TYPE=MinSizeRel \
+                -DTESSERA_BUILD_TESTS=OFF
+          cmake --build build-arm -j"$(nproc)"
+      - name: Report code size
+        run: |
+          for lib in build-arm/libtessera.a build-arm/libtessera_ports.a; do
+            printf '%-28s %s bytes\n' "$(basename "$lib")" \
+                   "$(arm-none-eabi-size -t "$lib" | tail -1 | awk '{print $1}')"
+          done
