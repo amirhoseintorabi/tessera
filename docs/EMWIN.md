@@ -16,7 +16,7 @@ static uint32_t rotation_scratch[32 * 32];
 
 TESSERA_CONFIG cfg = {0};
 cfg.map             = &map;          /* an initialised tess_map */
-cfg.vehicle         = &bm_arrow;     /* drawn rotated to the heading */
+cfg.focus         = &bm_arrow;     /* drawn rotated to the heading */
 cfg.pin             = &bm_pin;
 cfg.arrow           = &bm_edge;      /* drawn rotated to the bearing */
 cfg.rotation_buffer = rotation_scratch;

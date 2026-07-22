@@ -256,7 +256,8 @@ static void host_draw_marker(void *ctx, const tess_marker *marker, tess_marker_p
     if (placement.on_screen)
     {
         canvas->markers_drawn++;
-        /* Vehicle red, everything else yellow -- enough to tell them apart in
+        /* The focus marker red, everything else yellow -- enough to tell them
+         * apart in
          * a rendered frame. */
         if (index == TESS_MARKER_FOCUS)
         {

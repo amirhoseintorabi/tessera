@@ -194,15 +194,15 @@ static void paint_marker(void *ctx, const tess_marker *marker, tess_marker_place
     if (index == TESS_MARKER_FOCUS && marker->has_heading)
     {
         GUI_SetColor(GUI_RED);
-        if (!draw_rotated(pc->state, config->vehicle, cx, cy, marker->heading_deg))
+        if (!draw_rotated(pc->state, config->focus, cx, cy, marker->heading_deg))
         {
-            draw_bitmap_centred(config->vehicle, cx, cy);
+            draw_bitmap_centred(config->focus, cx, cy);
         }
         return;
     }
 
     GUI_SetColor(GUI_YELLOW);
-    draw_bitmap_centred((index == TESS_MARKER_FOCUS) ? config->vehicle : config->pin, cx, cy);
+    draw_bitmap_centred((index == TESS_MARKER_FOCUS) ? config->focus : config->pin, cx, cy);
 }
 
 /* ------------------------------------------------------------- the callback */

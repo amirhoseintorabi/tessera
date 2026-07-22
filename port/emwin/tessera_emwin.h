@@ -67,10 +67,10 @@ typedef struct
      * drawn as a plain filled circle -- enough to bring a board up before the
      * artwork exists.
      *
-     * `vehicle` is drawn rotated to the marker's heading, `arrow` rotated to
+     * `focus` is drawn rotated to the marker's heading, `arrow` rotated to
      * the bearing of an off-screen marker, and `pin` as-is.
      */
-    const GUI_BITMAP *vehicle;
+    const GUI_BITMAP *focus;
     const GUI_BITMAP *pin;
     const GUI_BITMAP *arrow;
 
