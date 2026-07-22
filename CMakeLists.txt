@@ -35,6 +35,7 @@ add_library(tessera STATIC
     src/grid.c
     src/view.c
     src/marker.c
+    src/map.c
 )
 add_library(tessera::tessera ALIAS tessera)
 target_include_directories(tessera PUBLIC
