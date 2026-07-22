@@ -85,10 +85,12 @@ endif()
 if(TESSERA_BUILD_PORTS)
     add_library(tessera_ports STATIC
         port/fatfs/tessera_fatfs.c
+        port/cmsis-rtos/tessera_rtos.c
     )
     add_library(tessera::ports ALIAS tessera_ports)
     target_include_directories(tessera_ports PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/port/fatfs
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/cmsis-rtos
     )
 
     # Real headers when given, the interoperability declarations otherwise.
@@ -99,6 +101,9 @@ if(TESSERA_BUILD_PORTS)
     endforeach()
     if(NOT TESSERA_FATFS_DIR)
         target_include_directories(tessera_ports PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/port/fatfs/interop)
+    endif()
+    if(NOT TESSERA_CMSIS_DIR)
+        target_include_directories(tessera_ports PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/port/cmsis-rtos/interop)
     endif()
 
     target_link_libraries(tessera_ports PUBLIC tessera)
@@ -112,9 +117,11 @@ if(TESSERA_BUILD_PORTS)
        AND NOT TESSERA_EMWIN_DIR AND NOT TESSERA_FATFS_DIR AND NOT TESSERA_CMSIS_DIR)
         add_library(tessera_interop STATIC
             port/fatfs/interop/ff_stdio.c
+            port/cmsis-rtos/interop/cmsis_os_pthread.c
         )
         target_include_directories(tessera_interop PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/port/fatfs/interop
+            ${CMAKE_CURRENT_SOURCE_DIR}/port/cmsis-rtos/interop
         )
         target_compile_options(tessera_interop PRIVATE ${TESSERA_WARNINGS})
         target_compile_definitions(tessera_interop PRIVATE _GNU_SOURCE)
