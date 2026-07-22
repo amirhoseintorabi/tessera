@@ -158,4 +158,13 @@ if(TESSERA_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
     target_compile_options(tessera_demo PRIVATE ${TESSERA_WARNINGS})
     target_compile_definitions(tessera_demo PRIVATE _GNU_SOURCE)
     add_test(NAME demo COMMAND tessera_demo)
+
+    if(TARGET tessera_interop)
+        add_executable(test_ports tests/test_ports.c)
+        # Order matters: the ports reference symbols the interop layer defines.
+        target_link_libraries(test_ports PRIVATE tessera_ports tessera_interop tessera_framebuffer)
+        target_compile_options(test_ports PRIVATE ${TESSERA_WARNINGS})
+        target_compile_definitions(test_ports PRIVATE _GNU_SOURCE)
+        add_test(NAME ports COMMAND test_ports)
+    endif()
 endif()
