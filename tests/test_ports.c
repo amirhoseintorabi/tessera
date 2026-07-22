@@ -25,6 +25,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #define SLOTS 30
@@ -306,6 +307,21 @@ static void test_rtos_loader_runs_alongside_the_gui(void)
     {
         tess_map_pan(&t->map, 8, 4);
         (void) tess_map_pending(&t->map);
+    }
+
+    /*
+     * Then stop panning and give the loader a bounded chance to finish a tile.
+     *
+     * Without this the progress check below is itself a race: every pan clears
+     * the queue and re-fills it, so on a machine slow enough -- a loaded CI
+     * runner under a sanitizer -- the panning thread can keep resetting the
+     * work faster than the loader drains it, and nothing is ever loaded. That
+     * is correct behaviour and a failing test.
+     */
+    for (int i = 0; i < 2000 && tess_map_get_stats(&t->map).tiles_loaded == 0; i++)
+    {
+        const struct timespec ms = {0, 1000000L};
+        nanosleep(&ms, NULL);
     }
 
     tess_rtos_loader_stop(&t->loader);
