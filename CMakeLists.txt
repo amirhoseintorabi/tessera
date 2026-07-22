@@ -13,6 +13,14 @@ endif()
 option(TESSERA_WERROR      "Treat warnings as errors"                        ON)
 option(TESSERA_SANITIZE    "Build with address and UB sanitizers"            OFF)
 option(TESSERA_BUILD_TESTS "Build the test suite and the demo"               ON)
+option(TESSERA_BUILD_PORTS "Build the FatFs, CMSIS-RTOS and emWin ports"     ON)
+
+# Where to find real emWin, FatFs and CMSIS headers. Empty means "use the
+# interoperability declarations under port/*/interop", which is what CI does --
+# see port/emwin/interop/README.md for what that does and does not establish.
+set(TESSERA_EMWIN_DIR "" CACHE PATH  "Directory containing a licensed emWin's headers")
+set(TESSERA_FATFS_DIR "" CACHE PATH  "Directory containing FatFs's ff.h")
+set(TESSERA_CMSIS_DIR "" CACHE PATH  "Directory containing cmsis_os.h")
 
 set(TESSERA_WARNINGS
     -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion
@@ -67,6 +75,53 @@ if(TESSERA_SANITIZE)
         target_compile_options(${target} PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
         target_link_options(${target} PUBLIC -fsanitize=address,undefined)
     endforeach()
+endif()
+
+# ---------------------------------------------------------------- the ports --
+#
+# The sources that go into firmware. They cross-compile for a target with
+# nothing from interop/ but the declarations, which is why the two are kept
+# apart.
+if(TESSERA_BUILD_PORTS)
+    add_library(tessera_ports STATIC
+        port/fatfs/tessera_fatfs.c
+    )
+    add_library(tessera::ports ALIAS tessera_ports)
+    target_include_directories(tessera_ports PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/fatfs
+    )
+
+    # Real headers when given, the interoperability declarations otherwise.
+    foreach(dep EMWIN FATFS CMSIS)
+        if(TESSERA_${dep}_DIR)
+            target_include_directories(tessera_ports PUBLIC ${TESSERA_${dep}_DIR})
+        endif()
+    endforeach()
+    if(NOT TESSERA_FATFS_DIR)
+        target_include_directories(tessera_ports PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/port/fatfs/interop)
+    endif()
+
+    target_link_libraries(tessera_ports PUBLIC tessera)
+    target_compile_options(tessera_ports PRIVATE ${TESSERA_WARNINGS})
+    target_compile_definitions(tessera_ports PRIVATE _GNU_SOURCE)
+
+    # The interoperability implementations: stdio, pthreads and a recorder.
+    # Host only, and deliberately not linked against tessera_ports -- the
+    # dependency runs the other way, so a consumer lists ports first.
+    if(NOT CMAKE_CROSSCOMPILING
+       AND NOT TESSERA_EMWIN_DIR AND NOT TESSERA_FATFS_DIR AND NOT TESSERA_CMSIS_DIR)
+        add_library(tessera_interop STATIC
+            port/fatfs/interop/ff_stdio.c
+        )
+        target_include_directories(tessera_interop PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/port/fatfs/interop
+        )
+        target_compile_options(tessera_interop PRIVATE ${TESSERA_WARNINGS})
+        target_compile_definitions(tessera_interop PRIVATE _GNU_SOURCE)
+
+        find_package(Threads REQUIRED)
+        target_link_libraries(tessera_interop PUBLIC Threads::Threads)
+    endif()
 endif()
 
 # ----------------------------------------------------------------- the tests --
