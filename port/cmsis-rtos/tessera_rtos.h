@@ -9,25 +9,14 @@
  * locking internally and releases on every path, so the loop below holds no
  * lock at all and the mutex is a straight pass-through to the RTOS.
  *
- * That is worth stating because the loader is where the two classic mistakes
- * in an asynchronous tile reader live.
+ * Why the loop is allowed to be this short: a loader that releases its lock
+ * only on the path where the work succeeded stops the map dead the first time
+ * the queue empties between the check and the fetch, which two threads make
+ * routine. Having no lock in the loop at all removes that failure mode rather
+ * than getting it right.
  *
- * The first is rolling your own lock out of a flag. Test and set are separate
- * statements with a scheduling point between them, so two threads can both
- * observe "free" and both proceed; and unless the flag is atomic the compiler
- * may hoist the load out of the wait loop and spin on a stale value for ever.
- * `volatile` addresses neither -- it constrains the compiler's caching of a
- * value and says nothing about ordering between threads.
- *
- * The second is releasing the lock only where the work succeeded. The failure
- * path in a loader is not rare: the queue emptying between a "is there work"
- * test and the fetch is routine once two threads are involved. Release it
- * there and the map stops loading tiles until the unit is power-cycled.
- *
- * There is also a sleep to get right. Sleeping after every tile, rather than
- * only when there is nothing to do, caps the fill rate regardless of how fast
- * the medium is -- at 100 ms that is ten tiles a second, so a screenful is
- * mostly spent deliberately idling.
+ * On using the RTOS mutex rather than a flag, see tess_lock in
+ * <tessera/port.h>.
  */
 
 #include "tessera/map.h"
@@ -41,9 +30,8 @@ typedef struct
     void *mutex;      /* osMutexId; void so this header needs no RTOS include */
     tess_map *map;
 
-    /* Guarded by `mutex`. Not volatile: volatile constrains the compiler, not
-     * the memory model, and is not a synchronisation primitive -- see the note
-     * in tess_rtos.c. */
+    /* Guarded by `mutex`; see the note above set_running() in tessera_rtos.c
+     * for why this is not simply volatile. */
     bool running;
 
     /* How long to sleep when there is nothing to load. Long enough not to

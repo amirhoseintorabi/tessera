@@ -53,10 +53,9 @@ tess_status tess_map_init(tess_map *map, const tess_map_config *config)
         return status;
     }
 
-    /* A grid larger than the cache would evict a tile it is about to ask for
-     * again on the very next frame, and the map would thrash without ever
-     * settling. Catching it here turns a baffling runtime symptom into a
-     * start-up error with an obvious cause. */
+    /* Refuse a grid the cache cannot hold; see slot_count in <tessera/map.h>.
+     * Caught here because the runtime symptom -- a map that never settles --
+     * points nowhere near the cause. */
     if (config->slot_count < tess_grid_count(&map->grid))
     {
         return TESS_ERR_ARG;
@@ -465,11 +464,8 @@ tess_status tess_map_service(tess_map *map)
     /*
      * Phase 1, under the lock: take a request and reserve somewhere to put it.
      *
-     * Reserving first is what makes the load path leak-proof. A full cache is
-     * an ordinary condition, not an error, so the "nowhere to put this" exit
-     * gets taken routinely -- and if the medium had already been opened by
-     * then, that exit is a handle leak on a resource that is fixed in number.
-     * Here there is nothing open yet to leak.
+     * The reservation has to come first -- see the state machine in
+     * <tessera/cache.h> for why.
      */
     lock_acquire(map);
 
@@ -528,12 +524,8 @@ tess_status tess_map_service(tess_map *map)
      */
     const tess_status load_status = map->source->load(map->source->ctx, tile, image);
 
-    /* Phase 3, under the lock again: publish, or give the slot back.
-     *
-     * This is the only point at which a slot becomes drawable, and it is
-     * reached only after the image is complete. Publishing earlier -- setting a
-     * "loaded" flag and then filling the buffer -- lets the drawing side find a
-     * half-decoded image, and the window is exactly as wide as the decode. */
+    /* Phase 3, under the lock again: publish, or give the slot back. Either
+     * way the slot leaves LOADING, so nothing stays reserved after a failure. */
     lock_acquire(map);
 
     if (load_status == TESS_OK)

@@ -62,15 +62,13 @@ tess_lock tess_rtos_lock(tess_rtos_loader *loader)
  * `running` is written by whichever thread calls stop() and read by the loader,
  * so it goes through the mutex like everything else shared here.
  *
- * It was `volatile bool` first, which is the reflex -- and ThreadSanitizer
- * called it a data race, correctly. volatile constrains the compiler's
- * caching of a value; it says nothing about ordering between threads and is
- * not a synchronisation primitive in either C11 or C++11. On a Cortex-M4 a
- * byte load is atomic in practice and it would very likely have worked -- but
- * "very likely works" is precisely the property that makes a threading bug
- * survive testing and appear in the field.
+ * `volatile bool` is the reflex, and ThreadSanitizer calls it a data race --
+ * correctly, for the reason given under tess_lock in <tessera/port.h>. On this
+ * architecture it would very likely have worked anyway, which is exactly the
+ * property that lets a threading bug survive testing.
  *
- * The cost is one uncontended mutex per loop iteration, next to an SD read.
+ * The cost is one uncontended mutex per iteration, next to a read from the
+ * medium.
  */
 static void set_running(tess_rtos_loader *loader, bool value)
 {
