@@ -573,7 +573,14 @@ tess_map_stats tess_map_get_stats(const tess_map *map)
 
     if (map != NULL)
     {
+        /* Under the lock, like tess_map_pending: the loader increments these
+         * counters from its own thread, so an unsynchronised read here is a
+         * data race however harmless the individual values look. A struct copy
+         * is also several words wide, so a torn read would mix counters from
+         * either side of an update. */
+        lock_acquire(map);
         stats = map->stats;
+        lock_release(map);
     }
     return stats;
 }

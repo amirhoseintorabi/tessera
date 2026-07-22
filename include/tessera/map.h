@@ -221,6 +221,8 @@ tess_status tess_map_service(tess_map *map);
 /* How many tiles the current view is still waiting for. */
 uint16_t tess_map_pending(const tess_map *map);
 
+/* Counters, taken atomically with respect to the loader. Safe to call from
+ * either thread. */
 tess_map_stats tess_map_get_stats(const tess_map *map);
 
 #ifdef __cplusplus
