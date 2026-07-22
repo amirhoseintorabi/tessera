@@ -16,15 +16,13 @@
 #include "tessera/marker.h"
 
 #include "check.h"
+#include "fixture.h"
 
-/* The Royal Observatory, Greenwich -- a fixed, public reference point. On the
- * prime meridian, so a longitude sign error shows up at once. */
-static const tess_geo kSite = {51.47788, -0.00159};
 
 static tess_view make_view(int zoom)
 {
     tess_view view;
-    CHECK_STATUS(tess_view_init(&view, kSite, zoom, 480, 272), TESS_OK);
+    CHECK_STATUS(tess_view_init(&view, test_site(), zoom, 480, 272), TESS_OK);
     return view;
 }
 
@@ -82,14 +80,14 @@ static void test_marker_set(void)
      * Labels come from places the widget does not control, so the length is
      * not something to take on trust. */
     const char *long_label = "0123456789012345678901234567890123456789";
-    tess_marker_set(&marker, kSite, long_label);
+    tess_marker_set(&marker, test_site(), long_label);
     CHECK_EQ_I(strlen(marker.label), TESS_MARKER_LABEL_MAX - 1);
     CHECK_EQ_I(marker.label[TESS_MARKER_LABEL_MAX - 1], 0);
 
-    tess_marker_set(&marker, kSite, NULL);
+    tess_marker_set(&marker, test_site(), NULL);
     CHECK_STR_EQ(marker.label, "");
 
-    tess_marker_set(NULL, kSite, "x");  /* must not crash */
+    tess_marker_set(NULL, test_site(), "x");  /* must not crash */
 }
 
 static void test_marker_heading(void)
@@ -97,7 +95,7 @@ static void test_marker_heading(void)
     begin("a heading is normalised and marks the marker as having one");
 
     tess_marker marker;
-    tess_marker_set(&marker, kSite, "Focus");
+    tess_marker_set(&marker, test_site(), "Focus");
     CHECK(!marker.has_heading);
 
     tess_marker_set_heading(&marker, 450);
@@ -109,7 +107,7 @@ static void test_marker_heading(void)
 
     /* Setting the position again clears the heading: a position with a stale
      * orientation attached is worse than one with none. */
-    tess_marker_set(&marker, kSite, "Focus");
+    tess_marker_set(&marker, test_site(), "Focus");
     CHECK(!marker.has_heading);
 
     tess_marker_set_heading(NULL, 0);
@@ -315,7 +313,7 @@ static void test_null_safety(void)
 {
     begin("a NULL view is refused, not dereferenced");
 
-    const tess_marker_placement p = tess_marker_locate(NULL, kSite, 16);
+    const tess_marker_placement p = tess_marker_locate(NULL, test_site(), 16);
     CHECK(p.on_screen);
     CHECK_EQ_I(p.point.x, 0);
 }

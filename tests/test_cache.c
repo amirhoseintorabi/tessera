@@ -15,20 +15,12 @@
 #include "tessera/cache.h"
 
 #include "check.h"
+#include "fixture.h"
 
 #define SLOTS 4
 
 static uint8_t buffers[SLOTS][8];
 static tess_slot slots[SLOTS];
-
-static tess_tile T(int32_t x, int32_t y, int32_t zoom)
-{
-    tess_tile t;
-    t.x = x;
-    t.y = y;
-    t.zoom = zoom;
-    return t;
-}
 
 static void reset(tess_cache *cache)
 {

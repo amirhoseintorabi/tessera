@@ -20,6 +20,7 @@
 #include "emwin_probe.h"
 
 #include "check.h"
+#include "fixture.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -29,23 +30,11 @@
 #define SLOTS 30
 #define TILE_BYTES TESS_TILE_BYTES_16BPP
 
-/* The Royal Observatory, Greenwich -- a fixed, public reference point. On the
- * prime meridian, so a longitude sign error shows up at once. */
-static const tess_geo kSite = {51.47788, -0.00159};
 
 static uint8_t tile_buffers[SLOTS][TILE_BYTES];
 static tess_slot slots[SLOTS];
 
 static char tile_dir[256];
-
-static tess_tile T(int32_t x, int32_t y, int32_t zoom)
-{
-    tess_tile t;
-    t.x = x;
-    t.y = y;
-    t.zoom = zoom;
-    return t;
-}
 
 /* ------------------------------------------------------- FatFs tile source */
 
@@ -214,7 +203,7 @@ static void test_fatfs_drives_the_engine(void)
 
     tess_map_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.centre = kSite;
+    cfg.centre = test_site();
     cfg.zoom = 14;
     cfg.width = 480;
     cfg.height = 272;
@@ -271,11 +260,9 @@ static void test_rtos_loader_runs_alongside_the_gui(void)
 {
     begin("the loader thread and the GUI thread share the map without seizing");
 
-    /* A loader that releases its lock only where the work succeeded stops the
-     * map dead the first time the queue empties between the check and the
-     * fetch -- which two threads make routine. Running the real loop against a
-     * real mutex while another thread pans is as close as a host test gets;
-     * under -fsanitize=thread it is closer still. */
+    /* The real loop, against a real mutex, while another thread pans. That is
+     * as close as a host test gets to the contention the lock exists for --
+     * and under -fsanitize=thread, closer still. */
     threaded *t = calloc(1, sizeof(*t));
     CHECK(t != NULL);
     if (t == NULL)
@@ -298,7 +285,7 @@ static void test_rtos_loader_runs_alongside_the_gui(void)
 
     tess_map_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.centre = kSite;
+    cfg.centre = test_site();
     cfg.zoom = 14;
     cfg.width = 480;
     cfg.height = 272;
@@ -393,7 +380,7 @@ static WM_HWIN create_widget(bool with_artwork, GUI_BITMAP *artwork)
 
     tess_map_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.centre = kSite;
+    cfg.centre = test_site();
     cfg.zoom = 14;
     cfg.width = 480;
     cfg.height = 272;
@@ -420,7 +407,7 @@ static WM_HWIN create_widget(bool with_artwork, GUI_BITMAP *artwork)
         artwork->XSize = 31;
         artwork->YSize = 31;
         artwork->BitsPerPixel = 32;
-        wcfg.vehicle = artwork;
+        wcfg.focus = artwork;
         wcfg.pin = artwork;
         wcfg.arrow = artwork;
     }
@@ -527,10 +514,10 @@ static void test_emwin_marker_rotation_balances(void)
     GUI_BITMAP artwork;
     const WM_HWIN window = create_widget(true, &artwork);
 
-    tess_map_marker_set(&widget_map, TESS_MARKER_FOCUS, kSite, "Focus");
+    tess_map_marker_set(&widget_map, TESS_MARKER_FOCUS, test_site(), "Focus");
     tess_map_marker_set_heading(&widget_map, TESS_MARKER_FOCUS, 45);
 
-    const tess_geo distant = {kSite.latitude + 0.5, kSite.longitude};
+    const tess_geo distant = {test_site().latitude + 0.5, test_site().longitude};
     tess_map_marker_set(&widget_map, 1, distant, "Remote");
 
     for (int frame = 0; frame < 20; frame++)
@@ -540,7 +527,7 @@ static void test_emwin_marker_rotation_balances(void)
 
     const tess_emwin_probe record = tess_emwin_probe_stats();
 
-    /* One vehicle rotated to its heading and one edge arrow rotated to its
+    /* One focus rotated to its heading and one edge arrow rotated to its
      * bearing, twenty times over. */
     CHECK_EQ_I(record.rotations, 40);
 
@@ -564,7 +551,7 @@ static void test_emwin_without_artwork(void)
     const WM_HWIN window = create_widget(false, NULL);
     CHECK(window != 0);
 
-    tess_map_marker_set(&widget_map, TESS_MARKER_FOCUS, kSite, "Focus");
+    tess_map_marker_set(&widget_map, TESS_MARKER_FOCUS, test_site(), "Focus");
     tess_map_marker_set_heading(&widget_map, TESS_MARKER_FOCUS, 90);
 
     tess_emwin_probe_send(window, WM_PAINT, NULL);
@@ -637,7 +624,7 @@ static void test_emwin_touch_can_be_disabled(void)
 
     tess_map_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.centre = kSite;
+    cfg.centre = test_site();
     cfg.zoom = 14;
     cfg.width = 480;
     cfg.height = 272;

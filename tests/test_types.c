@@ -12,27 +12,7 @@
 #include "tessera/types.h"
 
 #include "check.h"
-
-static tess_tile T(int32_t x, int32_t y, int32_t zoom)
-{
-    tess_tile t;
-    t.x = x;
-    t.y = y;
-    t.zoom = zoom;
-    return t;
-}
-
-static tess_rect R(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
-{
-    tess_rect r = {x0, y0, x1, y1};
-    return r;
-}
-
-static tess_point P(int32_t x, int32_t y)
-{
-    tess_point p = {x, y};
-    return p;
-}
+#include "fixture.h"
 
 static void test_rect_basics(void)
 {

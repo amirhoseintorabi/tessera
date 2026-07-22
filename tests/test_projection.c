@@ -11,6 +11,8 @@
  */
 #include "tessera/projection.h"
 
+#include "fixture.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,7 +64,6 @@ static void fail(int line, const char *what)
 /* A fixed reference site for the tests that need somewhere to stand: the Royal
  * Observatory, Greenwich. Latitude well north, longitude essentially on the
  * prime meridian, so a sign error in either axis is immediately visible. */
-static const tess_geo kSite = {51.47788, -0.00159};
 
 static void test_tiles_per_axis(void)
 {
@@ -231,10 +232,9 @@ static void test_tile_indices_stay_in_range(void)
 static void test_pixel_delta_signs(void)
 {
     begin("pixel delta points the way the screen does");
-    /* +x east, +y south. Getting the y sign backwards puts the vehicle marker
-     * on the wrong side of the map, and it is exactly the kind of thing that
-     * looks plausible until someone drives north. */
-    const tess_geo origin = kSite;
+    /* +x east, +y south. A flipped y sign puts every marker on the wrong side
+     * of the map, and looks entirely plausible until something moves north. */
+    const tess_geo origin = test_site();
 
     tess_geo east = origin;
     east.longitude += 0.01;
@@ -255,7 +255,7 @@ static void test_pixel_delta_signs(void)
 static void test_pixel_delta_is_antisymmetric(void)
 {
     begin("delta(a,b) == -delta(b,a)");
-    const tess_geo a = kSite;
+    const tess_geo a = test_site();
     const tess_geo b = {32.70000, 51.70000};
 
     int32_t abx = 0, aby = 0, bax = 0, bay = 0;
@@ -271,7 +271,7 @@ static void test_pixel_delta_matches_ground_distance(void)
     begin("pixel delta agrees with metres per pixel");
     /* An independent cross-check: convert a known ground offset into pixels
      * two different ways and require them to agree. */
-    const tess_geo a = kSite;
+    const tess_geo a = test_site();
     tess_geo b = a;
     b.longitude += 0.01; /* pure east */
 
@@ -292,11 +292,11 @@ static void test_metres_per_pixel(void)
     begin("ground resolution matches published values");
     /* Independently computed as 156543.03392804 * cos(latitude) / 2^zoom, the
      * published Web Mercator ground resolution, at 51.47788 N. */
-    CHECK_NEAR(tess_metres_per_pixel(kSite.latitude, 0),  97497.620384, 0.01);
-    CHECK_NEAR(tess_metres_per_pixel(kSite.latitude, 10),    95.212520, 0.001);
-    CHECK_NEAR(tess_metres_per_pixel(kSite.latitude, 13),    11.901565, 0.001);
-    CHECK_NEAR(tess_metres_per_pixel(kSite.latitude, 16),     1.487696, 0.001);
-    CHECK_NEAR(tess_metres_per_pixel(kSite.latitude, 22),     0.023245, 0.000001);
+    CHECK_NEAR(tess_metres_per_pixel(test_site().latitude, 0),  97497.620384, 0.01);
+    CHECK_NEAR(tess_metres_per_pixel(test_site().latitude, 10),    95.212520, 0.001);
+    CHECK_NEAR(tess_metres_per_pixel(test_site().latitude, 13),    11.901565, 0.001);
+    CHECK_NEAR(tess_metres_per_pixel(test_site().latitude, 16),     1.487696, 0.001);
+    CHECK_NEAR(tess_metres_per_pixel(test_site().latitude, 22),     0.023245, 0.000001);
 
     /* At the equator the constant appears undivided at zoom 0. */
     CHECK_NEAR(tess_metres_per_pixel(0.0, 0), 156543.03392804, 0.01);
@@ -359,10 +359,10 @@ static void test_zoom_to_fit(void)
 static void test_zoom_to_fit_degenerate(void)
 {
     begin("zoom to fit handles a single point and a hostile viewport");
-    /* Fitting one point is a zero-extent box. A closed-form solution divides
-     * by that extent; the caller hits this the first time it asks to centre on
-     * the vehicle alone. */
-    const tess_geo one[] = {kSite};
+    /* Fitting one point is a zero-extent box, and a closed-form solution
+     * divides by that extent. Callers reach it the first time they ask to
+     * centre on a single position. */
+    const tess_geo one[] = {test_site()};
     tess_bounds b;
     CHECK(tess_bounds_of(one, 1, &b));
     CHECK_EQ_I(tess_zoom_to_fit(b, 400, 240), TESSERA_MAX_ZOOM);
@@ -381,16 +381,16 @@ static void test_zoom_to_fit_degenerate(void)
 static void test_tile_bounds(void)
 {
     begin("a tile's bounds contain its own centre and nothing beyond");
-    const tess_tile t = tess_geo_to_tile(kSite, 14);
+    const tess_tile t = tess_geo_to_tile(test_site(), 14);
     const tess_bounds b = tess_tile_bounds(t);
 
     CHECK(b.south_west.latitude < b.north_east.latitude);
     CHECK(b.south_west.longitude < b.north_east.longitude);
 
-    CHECK(kSite.latitude >= b.south_west.latitude);
-    CHECK(kSite.latitude <= b.north_east.latitude);
-    CHECK(kSite.longitude >= b.south_west.longitude);
-    CHECK(kSite.longitude <= b.north_east.longitude);
+    CHECK(test_site().latitude >= b.south_west.latitude);
+    CHECK(test_site().latitude <= b.north_east.latitude);
+    CHECK(test_site().longitude >= b.south_west.longitude);
+    CHECK(test_site().longitude <= b.north_east.longitude);
 
     /* The centre of the box must land back in the same tile. */
     const tess_geo centre = tess_bounds_centre(b);
@@ -432,11 +432,10 @@ static void test_continuous_inverse(void)
         }
     }
 
-    /* Fractional coordinates are meaningful: (x + 0.5, y + 0.5) is the centre
-     * of tile (x, y), which must sit inside that tile's own bounds. */
+    /* The half-tile offset really does land in the middle of the tile. */
     for (int zoom = TESSERA_MIN_ZOOM; zoom <= TESSERA_MAX_ZOOM; zoom++)
     {
-        const tess_tile tile = tess_geo_to_tile(kSite, zoom);
+        const tess_tile tile = tess_geo_to_tile(test_site(), zoom);
         const tess_geo centre = tess_tile_f_to_geo((double) tile.x + 0.5,
                                                (double) tile.y + 0.5, zoom);
         const tess_bounds bounds = tess_tile_bounds(tile);

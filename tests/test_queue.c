@@ -13,15 +13,7 @@
 #include "tessera/queue.h"
 
 #include "check.h"
-
-static tess_tile T(int32_t x, int32_t y, int32_t zoom)
-{
-    tess_tile t;
-    t.x = x;
-    t.y = y;
-    t.zoom = zoom;
-    return t;
-}
+#include "fixture.h"
 
 static void test_empty(void)
 {

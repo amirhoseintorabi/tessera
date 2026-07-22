@@ -13,15 +13,7 @@
 #include "tessera/grid.h"
 
 #include "check.h"
-
-static tess_tile T(int32_t x, int32_t y, int32_t zoom)
-{
-    tess_tile t;
-    t.x = x;
-    t.y = y;
-    t.zoom = zoom;
-    return t;
-}
+#include "fixture.h"
 
 static void test_init_requires_an_odd_grid(void)
 {
@@ -137,10 +129,8 @@ static void test_fetch_order_exact_sequence(void)
 {
     begin("the 3x3 fetch order is exactly this");
 
-    /* Written out in full, because "roughly centre-out" is satisfied by
-     * several orders and only one of them puts the four edge-adjacent tiles
-     * ahead of the four diagonals -- which is what a viewport wider than it is
-     * tall actually shows first. */
+    /* Written out in full: "roughly centre-out" is satisfied by several
+     * orders, and only one of them is the documented one. */
     tess_grid grid;
     CHECK_STATUS(tess_grid_init(&grid, 3, 3), TESS_OK);
 

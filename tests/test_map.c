@@ -14,6 +14,7 @@
 #include "framebuffer.h"
 
 #include "check.h"
+#include "fixture.h"
 
 /*
  * Fifty slots for a twenty-five tile grid.
@@ -27,9 +28,6 @@
  */
 #define SLOTS 50
 
-/* The Royal Observatory, Greenwich -- a fixed, public reference point. On the
- * prime meridian, so a longitude sign error shows up at once. */
-static const tess_geo kSite = {51.47788, -0.00159};
 
 static uint16_t tile_pixels[SLOTS][TESSERA_TILE_SIZE * TESSERA_TILE_SIZE];
 static tess_slot slots[SLOTS];
@@ -95,7 +93,7 @@ static tess_status setup_with_slots(fixture *f, int zoom, uint16_t slot_count)
 
     tess_map_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.centre = kSite;
+    cfg.centre = test_site();
     cfg.zoom = zoom;
     cfg.width = 480;
     cfg.height = 272;
@@ -150,7 +148,7 @@ static void test_init_validation(void)
     }
 
     memset(&cfg, 0, sizeof(cfg));
-    cfg.centre = kSite;
+    cfg.centre = test_site();
     cfg.zoom = 14;
     cfg.width = 480;
     cfg.height = 272;
@@ -161,10 +159,8 @@ static void test_init_validation(void)
     CHECK_STATUS(tess_map_init(NULL, &cfg), TESS_ERR_ARG);
     CHECK_STATUS(tess_map_init(&map, NULL), TESS_ERR_ARG);
 
-    /* A grid larger than the cache would evict a tile it is about to ask for
-     * again on the next frame, and the map would thrash for ever without
-     * settling -- a runtime symptom with a very unobvious cause, so it is a
-     * start-up error instead. */
+    /* Too few slots for the grid is refused at start-up rather than left to
+     * show up as a map that never settles. */
     tess_map_config small = cfg;
     small.slot_count = 4;
     CHECK_STATUS(tess_map_init(&map, &small), TESS_ERR_ARG);
@@ -438,7 +434,7 @@ static void test_markers(void)
 
     CHECK_EQ_I(tess_map_marker_count(&f.map), 0);
 
-    CHECK_STATUS(tess_map_marker_set(&f.map, TESS_MARKER_FOCUS, kSite, "Focus"), TESS_OK);
+    CHECK_STATUS(tess_map_marker_set(&f.map, TESS_MARKER_FOCUS, test_site(), "Focus"), TESS_OK);
     CHECK_STATUS(tess_map_marker_set_heading(&f.map, TESS_MARKER_FOCUS, 45), TESS_OK);
     CHECK_EQ_I(tess_map_marker_count(&f.map), 1);
     CHECK_STR_EQ(tess_map_marker(&f.map, TESS_MARKER_FOCUS)->label, "Focus");
@@ -458,7 +454,7 @@ static void test_markers(void)
     CHECK_STATUS(tess_map_marker_set_visible(&f.map, 1, true), TESS_OK);
 
     /* Out-of-range indices are refused rather than writing past the array. */
-    CHECK_STATUS(tess_map_marker_set(&f.map, TESS_MARKER_MAX, kSite, "x"), TESS_ERR_ARG);
+    CHECK_STATUS(tess_map_marker_set(&f.map, TESS_MARKER_MAX, test_site(), "x"), TESS_ERR_ARG);
     CHECK_STATUS(tess_map_marker_set_heading(&f.map, 9, 0), TESS_ERR_ARG);
     CHECK(tess_map_marker(&f.map, 9) == NULL);
 
@@ -476,10 +472,10 @@ static void test_far_markers_become_arrows(void)
     setup(&f, 16);
     drain(&f, 200);
 
-    tess_map_marker_set(&f.map, TESS_MARKER_FOCUS, kSite, "Focus");
+    tess_map_marker_set(&f.map, TESS_MARKER_FOCUS, test_site(), "Focus");
 
     /* Half a degree away at zoom 16 is tens of thousands of pixels. */
-    const tess_geo distant = {kSite.latitude + 0.5, kSite.longitude};
+    const tess_geo distant = {test_site().latitude + 0.5, test_site().longitude};
     tess_map_marker_set(&f.map, 1, distant, "Far");
 
     CHECK_STATUS(tess_map_draw(&f.map, &f.painter), TESS_OK);
@@ -524,9 +520,9 @@ static void test_marker_clear_retracts_the_count(void)
     fixture f;
     setup(&f, 14);
 
-    tess_map_marker_set(&f.map, 0, kSite, "A");
-    tess_map_marker_set(&f.map, 1, kSite, "B");
-    tess_map_marker_set(&f.map, 2, kSite, "C");
+    tess_map_marker_set(&f.map, 0, test_site(), "A");
+    tess_map_marker_set(&f.map, 1, test_site(), "B");
+    tess_map_marker_set(&f.map, 2, test_site(), "C");
     CHECK_EQ_I(tess_map_marker_count(&f.map), 3);
 
     CHECK_STATUS(tess_map_marker_clear(&f.map, 2), TESS_OK);
@@ -604,7 +600,7 @@ static void test_no_source_is_a_supported_state(void)
     tess_map map;
     tess_map_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.centre = kSite;
+    cfg.centre = test_site();
     cfg.zoom = 14;
     cfg.width = 480;
     cfg.height = 272;
@@ -639,7 +635,7 @@ static void test_null_safety(void)
     CHECK(tess_map_marker(NULL, 0) == NULL);
     CHECK_STATUS(tess_map_marker_placement(&f.map, 0, NULL), TESS_ERR_ARG);
 
-    tess_map_set_centre(NULL, kSite);
+    tess_map_set_centre(NULL, test_site());
     tess_map_pan(NULL, 1, 1);
     tess_map_zoom(NULL, 1);
     tess_map_refresh(NULL);

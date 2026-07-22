@@ -13,26 +13,18 @@
 #include "tessera/view.h"
 
 #include "check.h"
+#include "fixture.h"
 
-/* The Royal Observatory, Greenwich -- a fixed, public reference point. On the
- * prime meridian, so a longitude sign error shows up at once. */
-static const tess_geo kSite = {51.47788, -0.00159};
 
 /* The lowest zoom a 480-pixel-wide view can represent. Below it the world is
  * narrower than the widget, the same place appears twice on screen, and
  * screen_to_geo has no single answer -- so the view clamps to it. */
 #define LOW_ZOOM  tess_min_zoom_for_width(480)
 
-static tess_point P(int32_t x, int32_t y)
-{
-    tess_point p = {x, y};
-    return p;
-}
-
 static tess_view make_view(int zoom)
 {
     tess_view view;
-    CHECK_STATUS(tess_view_init(&view, kSite, zoom, 480, 272), TESS_OK);
+    CHECK_STATUS(tess_view_init(&view, test_site(), zoom, 480, 272), TESS_OK);
     return view;
 }
 
@@ -41,7 +33,7 @@ static void test_init(void)
     begin("a view is always in a drawable state");
 
     tess_view view;
-    CHECK_STATUS(tess_view_init(&view, kSite, 14, 480, 272), TESS_OK);
+    CHECK_STATUS(tess_view_init(&view, test_site(), 14, 480, 272), TESS_OK);
     CHECK_EQ_I(view.zoom, 14);
     CHECK_EQ_I(view.width, 480);
     CHECK_EQ_I(view.height, 272);
@@ -49,15 +41,15 @@ static void test_init(void)
     /* Zoom outside the range the map ships tiles for is clamped, not rejected:
      * a caller restoring a saved zoom from a unit that shipped a different tile
      * set should get the nearest usable view, not a failure. */
-    CHECK_STATUS(tess_view_init(&view, kSite, 99, 480, 272), TESS_OK);
+    CHECK_STATUS(tess_view_init(&view, test_site(), 99, 480, 272), TESS_OK);
     CHECK_EQ_I(view.zoom, TESSERA_MAX_ZOOM);
-    CHECK_STATUS(tess_view_init(&view, kSite, 0, 480, 272), TESS_OK);
+    CHECK_STATUS(tess_view_init(&view, test_site(), 0, 480, 272), TESS_OK);
     CHECK_EQ_I(view.zoom, LOW_ZOOM);
     CHECK(LOW_ZOOM >= TESSERA_MIN_ZOOM);
 
     /* A wider widget raises that floor, and resizing re-applies it. */
     tess_view wide;
-    CHECK_STATUS(tess_view_init(&wide, kSite, 0, 4000, 272), TESS_OK);
+    CHECK_STATUS(tess_view_init(&wide, test_site(), 0, 4000, 272), TESS_OK);
     CHECK_EQ_I(wide.zoom, tess_min_zoom_for_width(4000));
     CHECK(wide.zoom > LOW_ZOOM);
 
@@ -72,9 +64,9 @@ static void test_init(void)
     CHECK_STATUS(tess_view_init(&view, wrapped, 12, 480, 272), TESS_OK);
     CHECK_NEAR(view.centre.longitude, 180.0 - 360.0, 1e-9);
 
-    CHECK_STATUS(tess_view_init(NULL, kSite, 12, 480, 272), TESS_ERR_ARG);
-    CHECK_STATUS(tess_view_init(&view, kSite, 12, 0, 272), TESS_ERR_ARG);
-    CHECK_STATUS(tess_view_init(&view, kSite, 12, 480, -1), TESS_ERR_ARG);
+    CHECK_STATUS(tess_view_init(NULL, test_site(), 12, 480, 272), TESS_ERR_ARG);
+    CHECK_STATUS(tess_view_init(&view, test_site(), 12, 0, 272), TESS_ERR_ARG);
+    CHECK_STATUS(tess_view_init(&view, test_site(), 12, 480, -1), TESS_ERR_ARG);
 }
 
 static void test_centre_is_at_the_middle_of_the_screen(void)
@@ -180,8 +172,8 @@ static void test_screen_axes_point_the_right_way(void)
 
     const tess_view view = make_view(14);
 
-    const tess_geo east = {kSite.latitude, kSite.longitude + 0.01};
-    const tess_geo north = {kSite.latitude + 0.01, kSite.longitude};
+    const tess_geo east = {test_site().latitude, test_site().longitude + 0.01};
+    const tess_geo north = {test_site().latitude + 0.01, test_site().longitude};
 
     const tess_point pe = tess_view_geo_to_screen(&view, east);
     const tess_point pn = tess_view_geo_to_screen(&view, north);
@@ -409,7 +401,7 @@ static void test_null_safety(void)
 {
     begin("NULL views are refused, not dereferenced");
 
-    tess_view_set_centre(NULL, kSite);
+    tess_view_set_centre(NULL, test_site());
     tess_view_pan(NULL, 1, 1);
     tess_view_zoom_at(NULL, 1, P(0, 0));
 
@@ -419,7 +411,7 @@ static void test_null_safety(void)
     const tess_tile t = tess_view_centre_tile(NULL);
     CHECK_EQ_I(t.zoom, 0);
 
-    const tess_point p = tess_view_geo_to_screen(NULL, kSite);
+    const tess_point p = tess_view_geo_to_screen(NULL, test_site());
     CHECK_EQ_I(p.x, 0);
     CHECK_EQ_I(p.y, 0);
 }

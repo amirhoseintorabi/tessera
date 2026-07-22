@@ -15,6 +15,8 @@
 
 #include "framebuffer.h"
 
+#include "fixture.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -22,9 +24,6 @@
 #define HEIGHT 272
 #define SLOTS  25
 
-/* The Royal Observatory, Greenwich -- a fixed, public reference point. On the
- * prime meridian, so a longitude sign error shows up at once. */
-static const tess_geo kSite = {51.47788, -0.00159};
 
 static uint16_t tile_pixels[SLOTS][TESSERA_TILE_SIZE * TESSERA_TILE_SIZE];
 static tess_slot slots[SLOTS];
@@ -92,7 +91,7 @@ int main(int argc, char **argv)
 
     tess_map_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.centre = kSite;
+    cfg.centre = test_site();
     cfg.zoom = 15;
     cfg.width = WIDTH;
     cfg.height = HEIGHT;
@@ -112,10 +111,10 @@ int main(int argc, char **argv)
     tess_canvas_init(&canvas, framebuffer, WIDTH, HEIGHT);
     const tess_painter painter = tess_canvas_painter(&canvas);
 
-    tess_map_marker_set(&map, TESS_MARKER_FOCUS, kSite, "Focus");
+    tess_map_marker_set(&map, TESS_MARKER_FOCUS, test_site(), "Focus");
     tess_map_marker_set_heading(&map, TESS_MARKER_FOCUS, 45);
 
-    const tess_geo nearby = {kSite.latitude + 0.0018, kSite.longitude + 0.0035};
+    const tess_geo nearby = {test_site().latitude + 0.0018, test_site().longitude + 0.0035};
     tess_map_marker_set(&map, 1, nearby, "Waypoint");
 
     printf("tessera demo, %dx%d\n", WIDTH, HEIGHT);
@@ -135,9 +134,9 @@ int main(int argc, char **argv)
     /* A third marker far enough out that it cannot be shown in place, so the
      * frame contains an edge arrow pointing at it. */
     tess_map_zoom(&map, +4);
-    tess_map_set_centre(&map, kSite);
+    tess_map_set_centre(&map, test_site());
 
-    const tess_geo depot = {kSite.latitude + 0.030, kSite.longitude - 0.012};
+    const tess_geo depot = {test_site().latitude + 0.030, test_site().longitude - 0.012};
     tess_map_marker_set(&map, 2, depot, "Remote");
     failures += render(&map, &canvas, &painter, out_dir, "04-arrow");
 
