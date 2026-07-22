@@ -50,8 +50,20 @@ if(M_LIB)
     target_link_libraries(tessera PUBLIC ${M_LIB})
 endif()
 
+# ------------------------------------------------------- the software render --
+#
+# A tile source that synthesises tiles and a painter that writes into an RGB
+# framebuffer. Not a mock: a second, independent implementation of the same two
+# interfaces the display bindings implement, which is what makes the engine's
+# output something you can look at.
+add_library(tessera_framebuffer STATIC port/framebuffer/framebuffer.c)
+add_library(tessera::framebuffer ALIAS tessera_framebuffer)
+target_include_directories(tessera_framebuffer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/port/framebuffer)
+target_link_libraries(tessera_framebuffer PUBLIC tessera)
+target_compile_options(tessera_framebuffer PRIVATE ${TESSERA_WARNINGS})
+
 if(TESSERA_SANITIZE)
-    foreach(target tessera)
+    foreach(target tessera tessera_framebuffer)
         target_compile_options(${target} PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
         target_link_options(${target} PUBLIC -fsanitize=address,undefined)
     endforeach()
@@ -61,11 +73,19 @@ endif()
 if(TESSERA_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
     enable_testing()
 
-    foreach(suite projection types queue cache grid view marker)
+    foreach(suite projection types queue cache grid view marker map)
         add_executable(test_${suite} tests/test_${suite}.c)
-        target_link_libraries(test_${suite} PRIVATE tessera)
+        target_link_libraries(test_${suite} PRIVATE tessera_framebuffer)
         target_compile_options(test_${suite} PRIVATE ${TESSERA_WARNINGS})
         target_compile_definitions(test_${suite} PRIVATE _GNU_SOURCE)
         add_test(NAME ${suite} COMMAND test_${suite})
     endforeach()
+
+    # Renders frames to PPM files. Run by the suite as well, because a demo
+    # nobody builds is a demo that has quietly stopped compiling.
+    add_executable(tessera_demo tests/demo.c)
+    target_link_libraries(tessera_demo PRIVATE tessera_framebuffer)
+    target_compile_options(tessera_demo PRIVATE ${TESSERA_WARNINGS})
+    target_compile_definitions(tessera_demo PRIVATE _GNU_SOURCE)
+    add_test(NAME demo COMMAND tessera_demo)
 endif()
