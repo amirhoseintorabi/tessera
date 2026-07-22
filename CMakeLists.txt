@@ -29,6 +29,7 @@ endif()
 # testable on a workstation and portable to anything with a C compiler.
 add_library(tessera STATIC
     src/projection.c
+    src/types.c
 )
 add_library(tessera::tessera ALIAS tessera)
 target_include_directories(tessera PUBLIC
@@ -54,7 +55,7 @@ endif()
 if(TESSERA_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
     enable_testing()
 
-    foreach(suite projection)
+    foreach(suite projection types)
         add_executable(test_${suite} tests/test_${suite}.c)
         target_link_libraries(test_${suite} PRIVATE tessera)
         target_compile_options(test_${suite} PRIVATE ${TESSERA_WARNINGS})
